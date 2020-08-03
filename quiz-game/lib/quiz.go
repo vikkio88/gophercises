@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 // Quiz Struct that holds a single question of the quiz
@@ -35,7 +36,6 @@ func LoadQuiz(filePath string) []Quiz {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(records)
 
 	//result := make([]Quiz, 0)
 	// we know how bit it is no need to leave it to HEAP
@@ -53,20 +53,32 @@ func LoadQuiz(filePath string) []Quiz {
 
 // PresentQuiz a function that allows you to run the quiz
 func PresentQuiz(quiz *[]Quiz, timeout int) {
+	c1 := make(chan int, 1)
+
 	input := bufio.NewScanner(os.Stdin)
 	total := len(*quiz)
 	fmt.Printf("Starting the quiz: %d questions\n\n", total)
-	for i, q := range *quiz {
-		fmt.Printf("Question %d of %d\n", i+1, total)
-		fmt.Println(q.Question)
-		fmt.Print("answer >  ")
-		input.Scan()
-		wasCorrect := (*quiz)[i].registerAnswer(input.Text())
-		if wasCorrect {
-			fmt.Print("Correct\n\n")
-		} else {
-			fmt.Printf("WRONG! It was %s\n\n", q.CorrectAnswer)
+	go func() {
+		for i, q := range *quiz {
+			fmt.Printf(" - Question %d of %d\n", i+1, total)
+			fmt.Println(q.Question)
+			fmt.Print("answer >  ")
+			input.Scan()
+			wasCorrect := (*quiz)[i].registerAnswer(input.Text())
+			if wasCorrect {
+				fmt.Print("Correct\n\n")
+			} else {
+				fmt.Printf("WRONG! It was %s\n\n", q.CorrectAnswer)
+			}
 		}
+		c1 <- 1
+	}()
+
+	select {
+	case _ = <-c1:
+		fmt.Println("Finished!")
+	case <-time.After(time.Duration(timeout) * time.Second):
+		fmt.Println("\n\nTIMEOUT REACHED!")
 	}
 }
 
@@ -78,7 +90,6 @@ func ShowResult(quiz *[]Quiz) {
 		if q.Answer == q.CorrectAnswer {
 			correctAnswers++
 		}
-		println(q.ID, q.Question, q.Answer, q.CorrectAnswer)
 	}
 
 	total := len(*quiz)
